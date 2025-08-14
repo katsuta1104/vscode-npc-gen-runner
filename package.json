@@ -1,0 +1,68 @@
+{
+  "name": "vscode-npc-gen-runner",
+  "displayName": "NPC Gen Runner",
+  "description": "Fetch generator from your NPC site and run solutions with seeds; saves outputs to out.txt",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "activationEvents": [
+    "onCommand:npc.fetchGen",
+    "onCommand:npc.runWithGen"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./"
+  },
+  "devDependencies": {
+    "@types/cheerio": "^0.22.30",
+    "@types/node": "^18.11.18",
+    "@types/node-fetch": "^2.6.13",
+    "@types/vscode": "^1.60.0",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "node-fetch": "^2.6.7"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "npc.fetchGen",
+        "title": "NPC: Fetch Generator"
+      },
+      {
+        "command": "npc.runWithGen",
+        "title": "NPC: Run with Generator(s)"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "NPC Gen Runner",
+      "properties": {
+        "npc.pythonPath": {
+          "type": "string",
+          "default": "python3"
+        },
+        "npc.genFilename": {
+          "type": "string",
+          "default": "gen.py"
+        },
+        "npc.mainFilename": {
+          "type": "string",
+          "default": "main.py"
+        },
+        "npc.timeoutMs": {
+          "type": "number",
+          "default": 30000
+        },
+        "npc.maxOutputBytes": {
+          "type": "number",
+          "default": 10000000
+        }
+      }
+    }
+  }
+}
