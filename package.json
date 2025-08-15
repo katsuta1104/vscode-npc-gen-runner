@@ -1,0 +1,43 @@
+{
+  "name": "vscode-npc-gen-runner",
+  "displayName": "NPC Gen Runner",
+  "description": "Fetch generator from contest pages and run user solutions with generated seeds.",
+  "version": "0.1.0",
+  "publisher": "yourname",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "main": "./out/extension.js",
+  "scripts": {
+    "compile": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/cheerio": "^0.22.35",
+    "@types/he": "^1.2.3",
+    "@types/node": "^18.19.123",
+    "@types/node-fetch": "^2.6.3",
+    "typescript": "^4.9.0",
+    "vscode": "^1.1.37"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "he": "^1.2.0",
+    "node-fetch": "^2.6.7"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "npc.fetchGenerator",
+        "title": "NPC: Fetch Generator"
+      },
+      {
+        "command": "npc.runWithGenerators",
+        "title": "NPC: Run with Generator(s)"
+      }
+    ]
+  },
+  "activationEvents": [
+    "onCommand:npc.fetchGenerator",
+    "onCommand:npc.runWithGenerators"
+  ]
+}

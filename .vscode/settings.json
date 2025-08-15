@@ -1,0 +1,6 @@
+﻿{
+  "npc.pythonPath": "python",
+  "npc.genFilename": "gen.py",
+  "npc.mainFilename": "main.py",
+  "npc.outputDir": "."
+}
