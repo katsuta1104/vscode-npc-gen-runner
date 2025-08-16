@@ -16,7 +16,7 @@ NPC(Nanyo Programming Contest)のテストを自動で行うVSCodeを想定し�
 
 - `https://sites.google.com/view/nanyocompetitiveprogramming/%E3%82%B3%E3%83%B3%E3%83%86%E3%82%B9%E3%83%88%E4%B8%80%E8%A6%A7/contest<num>/problems/<id>`
 
-例えば、Nanyo Competitive Programming 001 の A問題を参照させる場合は、
+例えば、Nanyo Programming Contest 001 の A問題を参照させる場合は、
 
 - `NPC001A`
 
