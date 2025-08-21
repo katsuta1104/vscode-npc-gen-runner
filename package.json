@@ -3,7 +3,7 @@
   "displayName": "NPC Gen Runner",
   "description": "Fetch generator from contest pages and run user solutions with generated seeds.",
   "version": "0.1.2",
-  "publisher": "yourname",
+  "publisher": "katsuta1104",
   "engines": {
     "vscode": "^1.60.0"
   },
