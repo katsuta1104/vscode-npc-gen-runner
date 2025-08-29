@@ -2,7 +2,7 @@
   "name": "vscode-npc-gen-runner",
   "displayName": "NPC Gen Runner",
   "description": "Fetch generator from contest pages and run user solutions with generated seeds.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "katsuta1104",
   "engines": {
     "vscode": "^1.60.0"
@@ -25,17 +25,50 @@
     "node-fetch": "^2.6.7"
   },
   "contributes": {
-    "commands": [
-      {
-        "command": "npc.fetchGenerator",
-        "title": "NPC: Fetch Generator"
+  "commands": [
+    {
+      "command": "npc.fetchGenerator",
+      "title": "NPC: Fetch Generator"
+    },
+    {
+      "command": "npc.runWithGenerators",
+      "title": "NPC: Run with Generator(s)"
+    }
+  ],
+  "configuration": {
+    "type": "object",
+    "title": "NPC Gen Runner",
+    "properties": {
+      "npc.pythonPath": {
+        "type": "string",
+        "default": "python3",
+        "description": "Path to Python interpreter."
       },
-      {
-        "command": "npc.runWithGenerators",
-        "title": "NPC: Run with Generator(s)"
+      "npc.genFilename": {
+        "type": "string",
+        "default": "gen.py",
+        "description": "Generator filename."
+      },
+      "npc.mainFilename": {
+        "type": "string",
+        "default": "main.py",
+        "description": "Main solution filename."
+      },
+      "npc.timeoutMs": {
+        "type": "number",
+        "default": 30000,
+        "description": "Timeout in milliseconds for running solutions."
+      },
+      "npc.maxOutputBytes": {
+        "type": "number",
+        "default": 10000000,
+        "description": "Maximum output size in bytes."
       }
-    ]
-  },
+    }
+  }
+},
+
+
   "activationEvents": [
     "onCommand:npc.fetchGenerator",
     "onCommand:npc.runWithGenerators"
