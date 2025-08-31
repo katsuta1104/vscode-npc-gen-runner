@@ -89,3 +89,5 @@ sudo npm install -g npm
 2025/08/16 READMEを追加。version0.1.2
 
 2025/08/29 GUIから設定を変更できるように修正 version0.1.3
+
+2025/08/31 C++で動くように修正 version0.1.4
