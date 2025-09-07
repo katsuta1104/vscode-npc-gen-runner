@@ -1,0 +1,8 @@
+{
+  "npc.pythonPath": "python",
+  "npc.genFilename": "gen.py",
+  "npc.mainFilename": "main.py",
+  "npc.outputDir": ".",
+  "npc.timeoutMs": 30000,
+  "npc.maxOutputBytes": 10000000
+}
