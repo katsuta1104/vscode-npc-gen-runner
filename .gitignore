@@ -1,0 +1,24 @@
+# Node modules
+node_modules/
+
+# Compiled output
+out/
+dist/
+
+# Logs
+*.log
+
+# VS Code settings (personal)
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary executable files
+*.exe
+*.out
+*.o
+
+# Test outputs
+outputs/
