@@ -562,6 +562,19 @@ async function fileExists(p: string): Promise<boolean> {
   }
 }
 
+// Parse seeds from a raw string (supports comments starting with #,
+// newline-separated entries, or whitespace/comma-separated entries on a line).
+function parseSeedsString(raw: string): string[] {
+  // Normalize newlines
+  const normalized = raw.replace(/\r\n/g, "\n");
+  // Remove comments per-line, then join lines with a single space so both
+  // newline-separated and space-separated formats are handled uniformly.
+  const withoutComments = normalized.split(/\n/).map(l => l.replace(/#.*$/,'').trim()).filter(Boolean).join(' ');
+  // Split on any whitespace or commas
+  const seeds = withoutComments.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+  return seeds;
+}
+
 // runCommandCapture: returns exitCode, stdout, stderr, cpuTimeMs?, realTimeMs?, exitSignal?
 async function runCommandCapture(runCommand: string, cwd: string, stdinStream: fs.ReadStream | null, timeoutMs: number, maxOutputBytes: number, seedSafeForTracking: string, outputChannel?: vscode.OutputChannel): Promise<{ exitCode: number | null; stdout: string; stderr: string; cpuTimeMs?: number; realTimeMs?: number; exitSignal?: string | null }> {
   if (process.platform !== "win32") {
@@ -1243,7 +1256,8 @@ function writeSummaryWithStats(outdir: string, seeds: string[], results: any[], 
       if (ok) okMainCount++;
     }
 
-    if (typeof scoreVal === "number" && Number.isFinite(scoreVal)) scores.push(scoreVal);
+    // Exclude sentinel score -1 (used to indicate WA/TLE) from aggregates
+    if (typeof scoreVal === "number" && Number.isFinite(scoreVal) && scoreVal !== -1) scores.push(scoreVal);
     if (typeof cpuVal === "number" && Number.isFinite(cpuVal)) cpuTimes.push(cpuVal);
     if (typeof realVal === "number" && Number.isFinite(realVal)) realTimes.push(realVal);
 
@@ -1389,9 +1403,50 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
 
-      const manual = await vscode.window.showInputBox({ prompt: "Enter seeds separated by spaces or commas (e.g. 10 21 40)" });
-      if (!manual) return;
-      const seeds = manual.split(/[\s,]+/).filter(s => s.trim().length > 0);
+      // Try to read seeds.txt in workspace root first; otherwise prompt user.
+      const seedsFile = path.join(root, "seeds.txt");
+      let seeds: string[] = [];
+      if (await fileExists(seedsFile)) {
+        const rawBuf = await readFileAsync(seedsFile);
+        let raw: string;
+        if (Buffer.isBuffer(rawBuf)) {
+          const b: Buffer = rawBuf;
+          if (b.length >= 3 && b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) {
+            raw = b.toString("utf8").replace(/^\uFEFF/, "");
+          } else if (b.length >= 2 && b[0] === 0xFF && b[1] === 0xFE) {
+            raw = b.toString("utf16le");
+          } else if (b.length >= 2 && b[0] === 0xFE && b[1] === 0xFF) {
+            const swapped = Buffer.allocUnsafe(b.length);
+            for (let i = 0; i + 1 < b.length; i += 2) {
+              swapped[i] = b[i + 1];
+              swapped[i + 1] = b[i];
+            }
+            if (b.length % 2 === 1) swapped[b.length - 1] = b[b.length - 1];
+            raw = swapped.toString("utf16le");
+          } else {
+            let zeroOdd = 0;
+            let zeroEven = 0;
+            const maxCheck = Math.min(b.length, 1024);
+            for (let i = 0; i < maxCheck; i++) {
+              if (b[i] === 0) {
+                if (i % 2 === 0) zeroEven++; else zeroOdd++;
+              }
+            }
+            if (zeroOdd > zeroEven && zeroOdd > maxCheck * 0.25) {
+              raw = b.toString("utf16le");
+            } else {
+              raw = b.toString("utf8");
+            }
+          }
+        } else {
+          raw = String(rawBuf);
+        }
+        seeds = parseSeedsString(raw);
+      } else {
+        const manual = await vscode.window.showInputBox({ prompt: "Enter seeds separated by spaces, commas, or newlines (e.g. 10 21 40 or 10,21,40)" });
+        if (!manual) return;
+        seeds = parseSeedsString(manual);
+      }
       if (seeds.length === 0) {
         vscode.window.showErrorMessage("No seeds provided.");
         return;
@@ -1525,28 +1580,8 @@ export function activate(context: vscode.ExtensionContext) {
                 resObj.main_stdout = acceptedRun.stdout;
                 resObj.mainTimeMs = acceptedRun.mainTimeMs;
                 resObj.realTimeMs = acceptedRun.realTimeMs;
-                outputChannel.appendLine(`Seed ${s}: OK (cpu=${resObj.mainTimeMs ?? "N/A"} ms realtime=${resObj.realTimeMs ?? "N/A"} ms) — running scorer...`);
-                if (await fileExists(path.join(root, String(cfg.scorerFilename)))) {
-                  try {
-                    const sc = await runScorer(s, cfg, root, outdir, outputChannel);
-                    resObj.scorer_ok = sc.ok;
-                    resObj.scorer_exitCode = sc.exitCode;
-                    resObj.scorer_err = sc.err;
-                    resObj.scorer_stdout = sc.stdout;
-                    resObj.scorer_score = sc.parsedScore ?? null;
-                    if (sc.ok) {
-                      outputChannel.appendLine(`Seed ${s}: scorer OK (score: ${sc.parsedScore ?? "N/A"})`);
-                    } else {
-                      outputChannel.appendLine(`Seed ${s}: scorer FAILED - ${sc.err}`);
-                    }
-                  } catch (e:any) {
-                    resObj.scorer_ok = false;
-                    resObj.scorer_err = String(e);
-                    outputChannel.appendLine(`Seed ${s}: scorer exception - ${String(e)}`);
-                  }
-                } else {
-                  outputChannel.appendLine(`Seed ${s}: scorer not found — skipping scorer.`);
-                }
+                // NOTE: `npc.runWithGenerators` does not perform scoring — skip scorer.
+                outputChannel.appendLine(`Seed ${s}: OK (cpu=${resObj.mainTimeMs ?? "N/A"} ms realtime=${resObj.realTimeMs ?? "N/A"} ms) — scorer skipped (runWithGenerators)`);
               } else {
                 // no accepted run within retries -> mark TLE and set score -1
                 if (lastRun) {
@@ -1571,7 +1606,6 @@ export function activate(context: vscode.ExtensionContext) {
                   resObj.main_ok = false;
                   resObj.main_err = 'TLE';
                 }
-                resObj.scorer_score = -1;
                 outputChannel.appendLine(`Seed ${s}: all attempts exceeded time limit -> marked TLE`);
               }
 
@@ -1689,9 +1723,51 @@ export function activate(context: vscode.ExtensionContext) {
         if (ok !== "Continue") return;
       }
 
-      const manual = await vscode.window.showInputBox({ prompt: "Enter seeds separated by spaces or commas (e.g. 10 21 40)" });
-      if (!manual) return;
-      const seeds = manual.split(/[\s,]+/).filter(s => s.trim().length > 0);
+      // Try to read seeds.txt in workspace root first; otherwise prompt user.
+      const seedsFile = path.join(root, "seeds.txt");
+      let seeds: string[] = [];
+      if (await fileExists(seedsFile)) {
+        const rawBuf = await readFileAsync(seedsFile);
+        let raw: string;
+        if (Buffer.isBuffer(rawBuf)) {
+          const b: Buffer = rawBuf;
+          if (b.length >= 3 && b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) {
+            raw = b.toString("utf8").replace(/^\uFEFF/, "");
+          } else if (b.length >= 2 && b[0] === 0xFF && b[1] === 0xFE) {
+            raw = b.toString("utf16le");
+          } else if (b.length >= 2 && b[0] === 0xFE && b[1] === 0xFF) {
+            const swapped = Buffer.allocUnsafe(b.length);
+            for (let i = 0; i + 1 < b.length; i += 2) {
+              swapped[i] = b[i + 1];
+              swapped[i + 1] = b[i];
+            }
+            if (b.length % 2 === 1) swapped[b.length - 1] = b[b.length - 1];
+            raw = swapped.toString("utf16le");
+          } else {
+            let zeroOdd = 0;
+            let zeroEven = 0;
+            const maxCheck = Math.min(b.length, 1024);
+            for (let i = 0; i < maxCheck; i++) {
+              if (b[i] === 0) {
+                if (i % 2 === 0) zeroEven++; else zeroOdd++;
+              }
+            }
+            if (zeroOdd > zeroEven && zeroOdd > maxCheck * 0.25) {
+              raw = b.toString("utf16le");
+            } else {
+              raw = b.toString("utf8");
+            }
+          }
+        } else {
+          raw = String(rawBuf);
+        }
+        seeds = parseSeedsString(raw);
+      } else {
+        const manual = await vscode.window.showInputBox({ prompt: "Enter seeds separated by spaces, commas, or newlines (e.g. 10 21 40 or 10,21,40)" });
+        if (!manual) return;
+        seeds = parseSeedsString(manual);
+      }
+
       if (seeds.length === 0) {
         vscode.window.showErrorMessage("No seeds provided.");
         return;
@@ -2091,8 +2167,8 @@ export function activate(context: vscode.ExtensionContext) {
         raw = String(rawBuf);
       }
 
-      // now split lines, strip comments and empty lines
-      const seeds = raw.split(/\r?\n/).map(s => s.replace(/#.*$/,'').trim()).filter(Boolean);
+      // now parse seeds (supports newline-separated and whitespace/comma-separated)
+      const seeds = parseSeedsString(raw);
       if (seeds.length === 0) {
         vscode.window.showErrorMessage("seeds.txt contains no seeds.");
         return;
